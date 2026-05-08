@@ -1,9 +1,18 @@
 // THIS IS YOUR SOURCE OF TRUTH.
 
+import { calculateChatGPTToolOptimization } from "@/lib/calculators/chatgpt";
 import {
   calculateClaudeApiOptimization,
   calculateClaudeToolOptimization,
 } from "@/lib/calculators/claude";
+import { calculateCopilotOptimization } from "@/lib/calculators/copilot";
+import { calculateCursorOptimization } from "@/lib/calculators/cursor";
+import {
+  calculateGeminiApiOptimization,
+  calculateGeminiToolOptimization,
+} from "@/lib/calculators/gemini";
+import { calculateOpenAiApiOptimization } from "@/lib/calculators/openai";
+import { calculateV0ToolOptimization } from "@/lib/calculators/v0";
 import { convertToDisplay } from "@/lib/currency";
 import { SAAS_PRICING_DB } from "@/lib/db";
 import {
@@ -12,7 +21,7 @@ import {
   CurrencyType,
   OptimizationResult,
   SaasKey,
-  SaasOptimization
+  SaasOptimization,
 } from "@/lib/types";
 
 interface GlobalAuditResult {
@@ -43,7 +52,38 @@ export function calculateToolOptimization(
         currentSeats,
         currentMonthlySpend,
       );
-    // You will add case "chatgpt", "copilot", etc. here
+
+    case "cursor":
+      return calculateCursorOptimization(
+        currentPlanName,
+        currentSeats,
+        currentMonthlySpend,
+      );
+    case "copilot":
+      return calculateCopilotOptimization(
+        currentPlanName,
+        currentSeats,
+        currentMonthlySpend,
+      );
+    case "chatgpt":
+      return calculateChatGPTToolOptimization(
+        currentPlanName,
+        currentSeats,
+        currentMonthlySpend,
+      );
+    case "gemini":
+      return calculateGeminiToolOptimization(
+        currentPlanName,
+        currentSeats,
+        currentMonthlySpend,
+      );
+    case "v0":
+      return calculateV0ToolOptimization(
+        currentPlanName,
+        currentSeats,
+        currentMonthlySpend,
+      );
+
     default:
       throw new Error(
         `Optimization logic not yet implemented for: ${toolId}`,
@@ -71,7 +111,27 @@ export function calculateApiOptimization(
         isLatencyCritical,
         useCase,
       );
-    // You will add case "chatgpt", "copilot", etc. here
+    case "openai_api":
+      return calculateOpenAiApiOptimization(
+        providerKey,
+        modelId,
+        monthlyInputTokens,
+        monthlyOutputTokens,
+        currentMonthlySpend,
+        isLatencyCritical,
+        useCase,
+      );
+    case "gemini_api":
+      return calculateGeminiApiOptimization(
+        providerKey,
+        modelId,
+        monthlyInputTokens,
+        monthlyOutputTokens,
+        currentMonthlySpend,
+        isLatencyCritical,
+        useCase,
+      );
+
     default:
       throw new Error(
         `Optimization logic not yet implemented for: ${providerKey}`,
