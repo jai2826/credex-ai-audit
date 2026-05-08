@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtom } from "jotai";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
@@ -33,70 +33,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { auditItemsAtom } from "@/lib/atoms";
+import { TOOLS_CONFIG } from "@/lib/config";
+import {
+  ApiProviderKey,
+  AuditInput,
+  SaasKey,
+} from "@/lib/types";
 
-// Tool definitions with their respective plan tiers
-const TOOLS_CONFIG = {
-  cursor: {
-    name: "Cursor",
-    plans: ["Free", "Pro", "Enterprise"],
-  },
-  github_copilot: {
-    name: "GitHub Copilot",
-    plans: ["Individual", "Business", "Enterprise"],
-  },
-  claude: {
-    name: "Claude",
-    plans: ["Free", "Claude Pro", "Claude API"],
-  },
-  chatgpt: {
-    name: "ChatGPT",
-    plans: ["Free", "Plus", "Teams", "Enterprise"],
-  },
-  anthropic_api: {
-    name: "Anthropic API",
-    plans: ["Pay-as-you-go", "Enterprise"],
-  },
-  openai_api: {
-    name: "OpenAI API",
-    plans: ["Pay-as-you-go", "Enterprise"],
-  },
-  gemini: {
-    name: "Gemini",
-    plans: ["Free", "Gemini Advanced", "API"],
-  },
-  v0: {
-    name: "v0",
-    plans: ["Free", "Pro", "Team"],
-  },
-} as const;
+// --- SCHEMA DEFINITIONS ---
+const saasSchema = z.object({
+  type: z.literal("tool"),
+  toolId: z.string().min(1, "Select a tool"),
+  plan: z.string().min(1, "Select a plan"),
+  seats: z.coerce.number().int().min(1),
+  spend: z.coerce.number().min(0),
+});
 
-type ToolKey = keyof typeof TOOLS_CONFIG;
-
-const toolSchema = z.object({
-  tool: z.string().min(1, "Please select a tool"),
-  planTier: z.string().min(1, "Please select a plan tier"),
-  monthlySpend: z.coerce
-    .number()
-    .min(0, "Monthly spend must be at least $0")
-    .max(100000, "Monthly spend cannot exceed $100,000"),
-  numberOfSeats: z.coerce
-    .number()
-    .int("Number of seats must be a whole number")
-    .min(1, "Number of seats must be at least 1")
-    .max(10000, "Number of seats cannot exceed 10,000"),
+const apiSchema = z.object({
+  type: z.literal("api"),
+  toolId: z.string().min(1, "Select a tool"),
+  providerKey: z.string(), // Mapped from config
+  modelId: z.string().min(1, "Select a model"),
+  inputTokens: z.coerce.number().min(0),
+  outputTokens: z.coerce.number().min(0),
+  spend: z.coerce.number().min(0),
+  isLatencyCritical: z.boolean().default(false),
 });
 
 const spendInputFormSchema = z.object({
   tools: z
-    .array(toolSchema)
-    .min(1, "Please add at least one AI tool")
-    .max(8, "Maximum 8 tools allowed"),
-  totalEngineeringTeamSize: z.coerce
-    .number()
-    .int("Must be a whole number")
-    .min(1, "Team size must be at least 1")
-    .max(10000, "Team size cannot exceed 10,000"),
-  primaryUseCase: z.enum(
+    .array(
+      z.discriminatedUnion("type", [saasSchema, apiSchema]),
+    )
+    .min(1),
+  useCase: z.enum(
     ["coding", "writing", "data", "research", "mixed"],
     {
       message: "Please select a valid use case",
@@ -104,39 +75,35 @@ const spendInputFormSchema = z.object({
   ),
 });
 
-type SpendInputFormValues = z.infer<
+type SpendInputFormInput = z.input<
   typeof spendInputFormSchema
 >;
-type SpendInputFormInput = z.input<
+type SpendInputFormOutput = z.infer<
   typeof spendInputFormSchema
 >;
 
 export function SpendInputForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setAuditItems] = useAtom(auditItemsAtom);
 
   const form = useForm<
     SpendInputFormInput,
     unknown,
-    SpendInputFormValues
+    SpendInputFormOutput
   >({
     resolver: zodResolver(spendInputFormSchema),
     defaultValues: {
       tools: [
         {
-          tool: "",
-          planTier: "",
-          monthlySpend: 0,
-          numberOfSeats: 1,
+          type: "tool",
+          toolId: "",
+          plan: "",
+          seats: 1,
+          spend: 0,
         },
       ],
-      totalEngineeringTeamSize: 1,
-      primaryUseCase: undefined,
+      useCase: "coding",
     },
-  });
-
-  const watchedTools = useWatch({
-    control: form.control,
-    name: "tools",
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -144,30 +111,55 @@ export function SpendInputForm() {
     name: "tools",
   });
 
-  const onSubmit = async (values: SpendInputFormValues) => {
+  // Replaces the expensive form.watch inside the render loop
+  const watchedTools = useWatch({
+    control: form.control,
+    name: "tools",
+  });
+
+  const onSubmit = async (values: SpendInputFormOutput) => {
     setIsSubmitting(true);
     try {
-      // Here you would normally send the data to your backend
-      console.log("Form Data:", values);
-      // Example: await fetch('/api/audit', { method: 'POST', body: JSON.stringify(values) })
-      alert(
-        "Audit request submitted! Check console for details.",
+      // THE MAPPER: Translate the loose Form Output into Strict Domain Types
+      const strictAuditItems: AuditInput[] =
+        values.tools.map((item) => {
+          if (item.type === "tool") {
+            return {
+              type: "tool",
+              toolId: item.toolId as SaasKey,
+              plan: item.plan,
+              seats: item.seats,
+              spend: item.spend,
+            };
+          } else {
+            return {
+              type: "api",
+              toolId: item.toolId as ApiProviderKey,
+              providerKey:
+                item.providerKey as ApiProviderKey,
+              modelId: item.modelId,
+              inputTokens: item.inputTokens,
+              outputTokens: item.outputTokens,
+              spend: item.spend,
+              isLatencyCritical: item.isLatencyCritical,
+              // Inject the global useCase into the specific API item
+              useCase: values.useCase,
+            };
+          }
+        });
+
+      // Strict save to Jotai
+      setAuditItems(strictAuditItems);
+
+      console.log(
+        "Strict payload saved to Jotai:",
+        strictAuditItems,
       );
+      alert("Audit saved to local storage!");
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error("Error saving form:", error);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const addTool = () => {
-    if (fields.length < 8) {
-      append({
-        tool: "",
-        planTier: "",
-        monthlySpend: 0,
-        numberOfSeats: 1,
-      });
     }
   };
 
@@ -175,392 +167,523 @@ export function SpendInputForm() {
     <div className="w-full max-w-4xl mx-auto py-8 px-4">
       <Card className="bg-white border-slate-200">
         <CardHeader>
-          <CardTitle className="text-slate-900">
+          <CardTitle>
             AI Tools Spending Calculator
           </CardTitle>
-          <CardDescription className="text-slate-600">
-            Track and analyze your AI tool expenses across
-            your engineering team
+          <CardDescription>
+            Analyze your engineering team&apos;s expenses.
           </CardDescription>
         </CardHeader>
-
         <CardContent>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-8">
-            {/* Tools Section */}
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    AI Tools
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Add all AI tools your team is currently
-                    using
-                  </p>
-                </div>
+                <h3 className="text-lg font-semibold">
+                  AI Stack
+                </h3>
                 <Button
                   type="button"
-                  onClick={addTool}
-                  disabled={fields.length >= 8}
+                  onClick={() =>
+                    append({
+                      type: "tool",
+                      toolId: "",
+                      plan: "",
+                      seats: 1,
+                      spend: 0,
+                    })
+                  }
                   variant="outline"
-                  size="sm"
-                  className="border-slate-200 text-slate-900 hover:bg-slate-50">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Tool
+                  size="sm">
+                  <Plus className="w-4 h-4 mr-2" /> Add Tool
                 </Button>
               </div>
 
-              {/* Tool Items */}
-              <div className="space-y-4">
-                {fields.map((field, index) => {
-                  const selectedTool = (watchedTools?.[index]?.tool) as ToolKey;
-                  const planTiers = selectedTool
-                    ? TOOLS_CONFIG[selectedTool]?.plans ||
-                      []
-                    : [];
+              {fields.map((field, index) => {
+                // Efficiently pull current tool state from useWatch
+                const currentTool = watchedTools?.[index];
+                const toolId =
+                  currentTool?.toolId as string;
+                const type = currentTool?.type as
+                  | "tool"
+                  | "api";
+                const config = toolId
+                  ? TOOLS_CONFIG[toolId]
+                  : null;
 
-                  return (
-                    <div
-                      key={field.id}
-                      className="p-4 border border-slate-200 rounded-lg bg-slate-50 space-y-4">
-                      <div className="flex items-start justify-between">
-                        <h4 className="font-medium text-slate-900">
-                          Tool {index + 1}
-                        </h4>
-                        {fields.length > 1 && (
-                          <Button
-                            type="button"
-                            onClick={() => remove(index)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-slate-500 hover:text-red-600 hover:bg-red-50">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Grid for tool fields */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Tool Dropdown */}
-                        <Controller
-                          control={form.control}
-                          name={`tools.${index}.tool`}
-                          render={({
-                            field,
-                            fieldState,
-                          }) => (
-                            <Field>
-                              <FieldLabel className="text-slate-700">
-                                Tool
-                              </FieldLabel>
-                              <Select
-                                value={field.value}
-                                onValueChange={
-                                  field.onChange
-                                }>
-                                <SelectTrigger className="border-slate-200 bg-white text-slate-900">
-                                  <SelectValue placeholder="Select a tool" />
-                                </SelectTrigger>
-
-                                <SelectContent className="bg-white">
-                                  {Object.entries(
-                                    TOOLS_CONFIG,
-                                  ).map(([key, config]) => (
-                                    <SelectItem
-                                      key={key}
-                                      value={key}>
-                                      {config.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {fieldState.invalid && (
-                                <FieldError
-                                  className="text-red-600"
-                                  errors={[
-                                    fieldState.error,
-                                  ]}
-                                />
-                              )}
-                            </Field>
-                          )}
-                        />
-
-                        {/* Plan Tier Dropdown */}
-                        <Controller
-                          control={form.control}
-                          name={`tools.${index}.planTier`}
-                          render={({
-                            field,
-                            fieldState,
-                          }) => (
-                            <Field>
-                              <FieldLabel className="text-slate-700">
-                                Plan Tier
-                              </FieldLabel>
-                              <Select
-                                value={field.value}
-                                onValueChange={
-                                  field.onChange
-                                }>
-                                <SelectTrigger
-                                  disabled={!selectedTool}
-                                  className="border-slate-200 bg-white text-slate-900 disabled:opacity-50">
-                                  <SelectValue placeholder="Select a plan" />
-                                </SelectTrigger>
-
-                                <SelectContent className="bg-white">
-                                  {planTiers.map((plan) => (
-                                    <SelectItem
-                                      key={plan}
-                                      value={plan}>
-                                      {plan}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {fieldState.invalid && (
-                                <FieldError
-                                  className="text-red-600"
-                                  errors={[
-                                    fieldState.error,
-                                  ]}
-                                />
-                              )}
-                            </Field>
-                          )}
-                        />
-
-                        {/* Monthly Spend */}
-                        <Controller
-                          control={form.control}
-                          name={`tools.${index}.monthlySpend`}
-                          render={({
-                            field,
-                            fieldState,
-                          }) => (
-                            <Field>
-                              <FieldLabel className="text-slate-700">
-                                Monthly Spend
-                              </FieldLabel>
-
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 font-medium">
-                                  $
-                                </span>
-                                <Input
-                                  ref={field.ref}
-                                  name={field.name}
-                                  onBlur={field.onBlur}
-                                  type="number"
-                                  placeholder="0.00"
-                                  value={
-                                    (field.value as string) ??
-                                    ""
-                                  }
-                                  className="pl-8 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
-                                  onChange={(e) =>
-                                    field.onChange(
-                                      e.target.value
-                                        ? parseFloat(
-                                            e.target.value,
-                                          )
-                                        : 0,
-                                    )
-                                  }
-                                />
-                              </div>
-
-                              {fieldState.invalid && (
-                                <FieldError
-                                  className="text-red-600"
-                                  errors={[
-                                    fieldState.error,
-                                  ]}
-                                />
-                              )}
-                            </Field>
-                          )}
-                        />
-
-                        {/* Number of Seats */}
-                        <Controller
-                          control={form.control}
-                          name={`tools.${index}.numberOfSeats`}
-                          render={({
-                            field,
-                            fieldState,
-                          }) => (
-                            <Field>
-                              <FieldLabel className="text-slate-700">
-                                Number of Seats
-                              </FieldLabel>
-
-                              <Input
-                                ref={field.ref}
-                                name={field.name}
-                                onBlur={field.onBlur}
-                                type="number"
-                                placeholder="1"
-                                value={
-                                  (field.value as number) ??
-                                  1
-                                }
-                                className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value
-                                      ? parseInt(
-                                          e.target.value,
-                                          10,
-                                        )
-                                      : 1,
-                                  )
-                                }
-                              />
-
-                              {fieldState.invalid && (
-                                <FieldError
-                                  className="text-red-600"
-                                  errors={[
-                                    fieldState.error,
-                                  ]}
-                                />
-                              )}
-                            </Field>
-                          )}
-                        />
-                      </div>
+                return (
+                  <div
+                    key={field.id}
+                    className="p-4 border border-slate-200 rounded-lg bg-slate-50 space-y-4 relative">
+                    <div className="flex justify-between">
+                      <h4 className="font-medium">
+                        Tool {index + 1}
+                      </h4>
+                      <Button
+                        type="button"
+                        onClick={() => remove(index)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-slate-400 hover:text-red-600">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                  );
-                })}
-              </div>
 
-              {form.formState.errors.tools && (
-                <p className="text-sm font-medium text-red-600">
-                  {form.formState.errors.tools.message}
-                </p>
-              )}
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-slate-200" />
-
-            {/* Global Fields Section */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Team Information
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  General details about your team
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Total Engineering Team Size */}
-                <Controller
-                  control={form.control}
-                  name="totalEngineeringTeamSize"
-                  render={({ field, fieldState }) => (
-                    <Field>
-                      <FieldLabel className="text-slate-700">
-                        Total Engineering Team Size
-                      </FieldLabel>
-
-                      <Input
-                        ref={field.ref}
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        type="number"
-                        placeholder="10"
-                        value={(field.value as number) ?? 1}
-                        className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value
-                              ? parseInt(e.target.value, 10)
-                              : 1,
-                          )
-                        }
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Tool Dropdown */}
+                      <Controller
+                        control={form.control}
+                        name={`tools.${index}.toolId`}
+                        render={({
+                          field: f,
+                          fieldState: s,
+                        }) => (
+                          <Field data-invalid={s.invalid}>
+                            <FieldLabel>
+                              Tool / Provider
+                            </FieldLabel>
+                            <Select
+                              value={f.value}
+                              onValueChange={(val) => {
+                                f.onChange(val);
+                                const c = TOOLS_CONFIG[val];
+                                if (c?.supportsSaaS) {
+                                  form.setValue(
+                                    `tools.${index}.type`,
+                                    "tool",
+                                  );
+                                } else if (c?.supportsAPI) {
+                                  form.setValue(
+                                    `tools.${index}.type`,
+                                    "api",
+                                  );
+                                  form.setValue(
+                                    `tools.${index}.providerKey`,
+                                    c.apiProviderKey!,
+                                  );
+                                }
+                              }}>
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select tool" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white">
+                                {Object.entries(
+                                  TOOLS_CONFIG,
+                                ).map(([k, v]) => (
+                                  <SelectItem
+                                    key={k}
+                                    value={k}>
+                                    {v.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {s.invalid && (
+                              <FieldError
+                                className="text-red-600"
+                                errors={[s.error]}
+                              />
+                            )}
+                          </Field>
+                        )}
+                      />
+                      <Controller
+                        control={form.control}
+                        name="useCase"
+                        render={({
+                          field: f,
+                          fieldState: s,
+                        }) => (
+                          <Field data-invalid={s.invalid}>
+                            <FieldLabel>
+                              Use Case
+                            </FieldLabel>
+                            <Select
+                              value={f.value}
+                              onValueChange={f.onChange}>
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select use case" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white">
+                                {[
+                                  "coding",
+                                  "writing",
+                                  "data",
+                                  "research",
+                                  "mixed",
+                                ].map((v) => (
+                                  <SelectItem
+                                    key={v}
+                                    value={v}>
+                                    {v
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                      v.slice(1)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {s.invalid && (
+                              <FieldError
+                                className="text-red-600"
+                                errors={[s.error]}
+                              />
+                            )}
+                          </Field>
+                        )}
                       />
 
-                      <FieldDescription className="text-slate-500">
-                        Number of engineers on your team
-                      </FieldDescription>
-                      {fieldState.invalid && (
-                        <FieldError
-                          className="text-red-600"
-                          errors={[fieldState.error]}
-                        />
-                      )}
-                    </Field>
-                  )}
-                />
+                      {/* Mode Toggle */}
+                      {config?.supportsSaaS &&
+                        config?.supportsAPI && (
+                          <Controller
+                            control={form.control}
+                            name={`tools.${index}.type`}
+                            render={({ field: f }) => (
+                              <Field className="max-w-full">
+                                <FieldLabel>
+                                  Billing Structure
+                                </FieldLabel>
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant={
+                                      f.value === "tool"
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    onClick={() =>
+                                      f.onChange("tool")
+                                    }
+                                    className="w-1/2">
+                                    SaaS
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant={
+                                      f.value === "api"
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    onClick={() => {
+                                      f.onChange("api");
+                                      form.setValue(
+                                        `tools.${index}.providerKey`,
+                                        config.apiProviderKey!,
+                                      );
+                                    }}
+                                    className="w-1/2">
+                                    API
+                                  </Button>
+                                </div>
+                              </Field>
+                            )}
+                          />
+                        )}
+                    </div>
 
-                {/* Primary Use Case */}
-                <Controller
-                  control={form.control}
-                  name="primaryUseCase"
-                  render={({ field, fieldState }) => (
-                    <Field>
-                      <FieldLabel className="text-slate-700">
-                        Primary Use Case
-                      </FieldLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}>
-                        <SelectTrigger className="border-slate-200 bg-white text-slate-900">
-                          <SelectValue placeholder="Select a use case" />
-                        </SelectTrigger>
-
-                        <SelectContent className="bg-white">
-                          <SelectItem value="coding">
-                            Coding
-                          </SelectItem>
-                          <SelectItem value="writing">
-                            Writing
-                          </SelectItem>
-                          <SelectItem value="data">
-                            Data
-                          </SelectItem>
-                          <SelectItem value="research">
-                            Research
-                          </SelectItem>
-                          <SelectItem value="mixed">
-                            Mixed
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FieldDescription className="text-slate-500">
-                        How your team primarily uses AI
-                        tools
-                      </FieldDescription>
-                      {fieldState.invalid && (
-                        <FieldError
-                          className="text-red-600"
-                          errors={[fieldState.error]}
-                        />
+                    {/* SaaS Inputs */}
+                    {type === "tool" &&
+                      config?.supportsSaaS && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in">
+                          <Controller
+                            control={form.control}
+                            name={`tools.${index}.plan`}
+                            render={({
+                              field: f,
+                              fieldState: s,
+                            }) => (
+                              <Field
+                                data-invalid={s.invalid}>
+                                <FieldLabel>
+                                  Plan Tier
+                                </FieldLabel>
+                                <Select
+                                  value={f.value}
+                                  onValueChange={
+                                    f.onChange
+                                  }>
+                                  <SelectTrigger className="bg-white">
+                                    <SelectValue placeholder="Plan" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white">
+                                    {config.plans.map(
+                                      (p) => (
+                                        <SelectItem
+                                          key={p}
+                                          value={p}>
+                                          {p}
+                                        </SelectItem>
+                                      ),
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                {s.invalid && (
+                                  <FieldError
+                                    className="text-red-600"
+                                    errors={[s.error]}
+                                  />
+                                )}
+                              </Field>
+                            )}
+                          />
+                          <Controller
+                            control={form.control}
+                            name={`tools.${index}.seats`}
+                            render={({
+                              field: f,
+                              fieldState: s,
+                            }) => (
+                              <Field
+                                data-invalid={s.invalid}>
+                                <FieldLabel>
+                                  Seats
+                                </FieldLabel>
+                                <Input
+                                  type="number"
+                                  {...f}
+                                  min={1}
+                                  value={
+                                    (f.value as
+                                      | string
+                                      | number) ?? ""
+                                  }
+                                  className="bg-white"
+                                />
+                                {s.invalid && (
+                                  <FieldError
+                                    className="text-red-600"
+                                    errors={[s.error]}
+                                  />
+                                )}
+                              </Field>
+                            )}
+                          />
+                          <Controller
+                            control={form.control}
+                            name={`tools.${index}.spend`}
+                            render={({
+                              field: f,
+                              fieldState: s,
+                            }) => (
+                              <Field
+                                data-invalid={s.invalid}>
+                                <FieldLabel>
+                                  Spend
+                                </FieldLabel>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700">
+                                    $
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    {...f}
+                                    min={0}
+                                    value={
+                                      (f.value as
+                                        | string
+                                        | number) ?? ""
+                                    }
+                                    className="pl-8 bg-white"
+                                  />
+                                </div>
+                                {s.invalid && (
+                                  <FieldError
+                                    className="text-red-600"
+                                    errors={[s.error]}
+                                  />
+                                )}
+                              </Field>
+                            )}
+                          />
+                        </div>
                       )}
-                    </Field>
-                  )}
-                />
-              </div>
+
+                    {/* API Inputs */}
+                    {type === "api" &&
+                      config?.supportsAPI && (
+                        <div className="space-y-4 animate-in fade-in">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Controller
+                              control={form.control}
+                              name={`tools.${index}.modelId`}
+                              render={({
+                                field: f,
+                                fieldState: s,
+                              }) => (
+                                <Field
+                                  data-invalid={s.invalid}>
+                                  <FieldLabel>
+                                    Model
+                                  </FieldLabel>
+                                  <Select
+                                    value={f.value}
+                                    onValueChange={
+                                      f.onChange
+                                    }>
+                                    <SelectTrigger className="bg-white">
+                                      <SelectValue placeholder="Model" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white">
+                                      {config.models?.map(
+                                        (m) => (
+                                          <SelectItem
+                                            key={m.id}
+                                            value={m.id}>
+                                            {m.name}
+                                          </SelectItem>
+                                        ),
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  {s.invalid && (
+                                    <FieldError
+                                      className="text-red-600"
+                                      errors={[s.error]}
+                                    />
+                                  )}
+                                </Field>
+                              )}
+                            />
+                            <Controller
+                              control={form.control}
+                              name={`tools.${index}.inputTokens`}
+                              render={({
+                                field: f,
+                                fieldState: s,
+                              }) => (
+                                <Field
+                                  data-invalid={s.invalid}>
+                                  <FieldLabel>
+                                    Input (M)
+                                  </FieldLabel>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    {...f}
+                                    value={
+                                      (f.value as
+                                        | string
+                                        | number) ?? ""
+                                    }
+                                    className="bg-white"
+                                  />
+                                  {s.invalid && (
+                                    <FieldError
+                                      className="text-red-600"
+                                      errors={[s.error]}
+                                    />
+                                  )}
+                                </Field>
+                              )}
+                            />
+                            <Controller
+                              control={form.control}
+                              name={`tools.${index}.outputTokens`}
+                              render={({
+                                field: f,
+                                fieldState: s,
+                              }) => (
+                                <Field
+                                  data-invalid={s.invalid}>
+                                  <FieldLabel>
+                                    Output (M)
+                                  </FieldLabel>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step={0.01}
+                                    {...f}
+                                    value={
+                                      (f.value as
+                                        | string
+                                        | number) ?? ""
+                                    }
+                                    className="bg-white"
+                                  />
+                                  {s.invalid && (
+                                    <FieldError
+                                      className="text-red-600"
+                                      errors={[s.error]}
+                                    />
+                                  )}
+                                </Field>
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <Controller
+                              control={form.control}
+                              name={`tools.${index}.spend`}
+                              render={({
+                                field: f,
+                                fieldState: s,
+                              }) => (
+                                <Field
+                                  data-invalid={s.invalid}>
+                                  <FieldLabel>
+                                    Spend ($)
+                                  </FieldLabel>
+                                  <Input
+                                    type="number"
+                                    {...f}
+                                    min={0}
+                                    value={
+                                      (f.value as
+                                        | string
+                                        | number) ?? ""
+                                    }
+                                    className="bg-white"
+                                  />
+                                  {s.invalid && (
+                                    <FieldError
+                                      className="text-red-600"
+                                      errors={[s.error]}
+                                    />
+                                  )}
+                                </Field>
+                              )}
+                            />
+                            <Controller
+                              control={form.control}
+                              name={`tools.${index}.isLatencyCritical`}
+                              render={({ field: f }) => (
+                                <Field className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-slate-200 bg-white p-4">
+                                  <Input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-slate-300 mt-1"
+                                    checked={
+                                      f.value as boolean
+                                    }
+                                    onChange={f.onChange}
+                                  />
+                                  <div className="space-y-1 leading-none">
+                                    <FieldLabel className="text-slate-700">
+                                      Latency Critical
+                                      (Real-time)
+                                    </FieldLabel>
+                                  </div>
+                                </Field>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Submit Button */}
-            <div className="pt-4">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                {isSubmitting
-                  ? "Generating Audit..."
-                  : "Generate Free Audit"}
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
+              {isSubmitting
+                ? "Generating Audit..."
+                : "Generate Free Audit"}
+            </Button>
           </form>
         </CardContent>
       </Card>

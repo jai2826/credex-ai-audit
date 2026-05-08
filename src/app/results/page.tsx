@@ -9,7 +9,7 @@ const mockAuditResults: AuditResults = {
   totalAnnualSavings: 29400,
   tools: [
     {
-      toolId: 'github_copilot',
+      toolId: 'copilot',
       toolName: 'GitHub Copilot',
       currentSpend: 1200,
       recommendedSpend: 800,
@@ -54,7 +54,7 @@ const mockAuditResults: AuditResults = {
       percentageSavings: 0,
     },
     {
-      toolId: 'openai_api',
+      toolId: 'chatgpt',
       toolName: 'OpenAI API',
       currentSpend: 520,
       recommendedSpend: 280,

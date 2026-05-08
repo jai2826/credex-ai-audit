@@ -2,11 +2,12 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CombinedKey } from '@/lib/types';
 import { ArrowDownRight, Award, TrendingUp } from 'lucide-react';
 
 // Types for audit results
 export interface ToolAnalysis {
-  toolId: string;
+  toolId: CombinedKey;
   toolName: string;
   currentSpend: number;
   recommendedSpend: number;
