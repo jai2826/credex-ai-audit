@@ -20,8 +20,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
@@ -40,10 +42,11 @@ import {
   AuditInput,
   SaasKey,
 } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 // --- SCHEMA DEFINITIONS ---
 const saasSchema = z.object({
-  type: z.literal("tool"),
+  type: z.literal("saas"),
   toolId: z.string().min(1, "Select a tool"),
   plan: z.string().min(1, "Select a plan"),
   seats: z.coerce.number().int().min(1),
@@ -95,11 +98,21 @@ export function SpendInputForm() {
     defaultValues: {
       tools: [
         {
-          type: "tool",
+          type: "saas",
           toolId: "",
           plan: "",
           seats: 1,
           spend: 0,
+        },
+        {
+          type: "api",
+          toolId: "",
+          providerKey: "",
+          modelId: "",
+          inputTokens: 0,
+          outputTokens: 0,
+          spend: 0,
+          isLatencyCritical: false,
         },
       ],
       useCase: "coding",
@@ -123,9 +136,9 @@ export function SpendInputForm() {
       // THE MAPPER: Translate the loose Form Output into Strict Domain Types
       const strictAuditItems: AuditInput[] =
         values.tools.map((item) => {
-          if (item.type === "tool") {
+          if (item.type === "saas") {
             return {
-              type: "tool",
+              type: "saas",
               toolId: item.toolId as SaasKey,
               plan: item.plan,
               seats: item.seats,
@@ -164,10 +177,10 @@ export function SpendInputForm() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-8 px-4">
-      <Card className="bg-white border-slate-200">
-        <CardHeader>
-          <CardTitle>
+    <div className="w-full max-w-4xl mx-auto ">
+      <Card className="bg-white border-slate-200 rounded-xl ">
+        <CardHeader className="font-sans">
+          <CardTitle className="text-2xl font-semibold font-sans capitalize!">
             AI Tools Spending Calculator
           </CardTitle>
           <CardDescription>
@@ -187,15 +200,16 @@ export function SpendInputForm() {
                   type="button"
                   onClick={() =>
                     append({
-                      type: "tool",
+                      type: "saas",
                       toolId: "",
                       plan: "",
                       seats: 1,
                       spend: 0,
                     })
                   }
-                  variant="outline"
-                  size="sm">
+                  variant={"outline"}
+                  size="sm"
+                  className="rounded-md ">
                   <Plus className="w-4 h-4 mr-2" /> Add Tool
                 </Button>
               </div>
@@ -206,7 +220,7 @@ export function SpendInputForm() {
                 const toolId =
                   currentTool?.toolId as string;
                 const type = currentTool?.type as
-                  | "tool"
+                  | "saas"
                   | "api";
                 const config = toolId
                   ? TOOLS_CONFIG[toolId]
@@ -217,20 +231,24 @@ export function SpendInputForm() {
                     key={field.id}
                     className="p-4 border border-slate-200 rounded-lg bg-slate-50 space-y-4 relative">
                     <div className="flex justify-between">
-                      <h4 className="font-medium">
+                      <h4 className="font-medium ">
                         Tool {index + 1}
                       </h4>
                       <Button
                         type="button"
                         onClick={() => remove(index)}
                         variant="ghost"
-                        size="sm"
-                        className="text-slate-400 hover:text-red-600">
-                        <Trash2 className="w-4 h-4" />
+                        size={"icon-lg"}
+                        className={cn(
+                          "text-slate-400  rounded-md hover:text-slate-600 transition-colors",
+                          watchedTools.length === 1 &&
+                            "hidden", // Hide delete button on the first item to ensure at least one tool remains
+                        )}>
+                        <Trash2 className="w-6 h-6" />
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                       {/* Tool Dropdown */}
                       <Controller
                         control={form.control}
@@ -251,7 +269,7 @@ export function SpendInputForm() {
                                 if (c?.supportsSaaS) {
                                   form.setValue(
                                     `tools.${index}.type`,
-                                    "tool",
+                                    "saas",
                                   );
                                 } else if (c?.supportsAPI) {
                                   form.setValue(
@@ -264,8 +282,8 @@ export function SpendInputForm() {
                                   );
                                 }
                               }}>
-                              <SelectTrigger className="bg-white">
-                                <SelectValue placeholder="Select tool" />
+                              <SelectTrigger className=" bg-white ">
+                                <SelectValue placeholder="Choose an AI tool" />
                               </SelectTrigger>
                               <SelectContent className="bg-white">
                                 {Object.entries(
@@ -341,22 +359,22 @@ export function SpendInputForm() {
                             control={form.control}
                             name={`tools.${index}.type`}
                             render={({ field: f }) => (
-                              <Field className="max-w-full">
+                              <Field className="col-span-2 ">
                                 <FieldLabel>
                                   Billing Structure
                                 </FieldLabel>
-                                <div className="flex gap-2">
+                                <div className="grid md:grid-cols-2  gap-2">
                                   <Button
                                     type="button"
                                     variant={
-                                      f.value === "tool"
+                                      f.value === "saas"
                                         ? "default"
                                         : "outline"
                                     }
                                     onClick={() =>
-                                      f.onChange("tool")
+                                      f.onChange("saas")
                                     }
-                                    className="w-1/2">
+                                    className=" rounded-md">
                                     SaaS
                                   </Button>
                                   <Button
@@ -373,7 +391,7 @@ export function SpendInputForm() {
                                         config.apiProviderKey!,
                                       );
                                     }}
-                                    className="w-1/2">
+                                    className=" rounded-md">
                                     API
                                   </Button>
                                 </div>
@@ -384,7 +402,7 @@ export function SpendInputForm() {
                     </div>
 
                     {/* SaaS Inputs */}
-                    {type === "tool" &&
+                    {type === "saas" &&
                       config?.supportsSaaS && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in">
                           <Controller
@@ -443,11 +461,11 @@ export function SpendInputForm() {
                                 <Input
                                   type="number"
                                   {...f}
+                                  step={1}
                                   min={1}
                                   value={
-                                    (f.value as
-                                      | string
-                                      | number) ?? ""
+                                    (f.value as number) ??
+                                    ""
                                   }
                                   className="bg-white"
                                 />
@@ -478,12 +496,12 @@ export function SpendInputForm() {
                                   </span>
                                   <Input
                                     type="number"
+                                    step={"any"}
                                     {...f}
                                     min={0}
                                     value={
-                                      (f.value as
-                                        | string
-                                        | number) ?? ""
+                                      (f.value as number) ??
+                                      ""
                                     }
                                     className="pl-8 bg-white"
                                   />
@@ -561,12 +579,11 @@ export function SpendInputForm() {
                                   <Input
                                     type="number"
                                     min={0}
-                                    step="0.01"
+                                    step="any"
                                     {...f}
                                     value={
-                                      (f.value as
-                                        | string
-                                        | number) ?? ""
+                                      (f.value as number) ??
+                                      ""
                                     }
                                     className="bg-white"
                                   />
@@ -594,12 +611,11 @@ export function SpendInputForm() {
                                   <Input
                                     type="number"
                                     min={0}
-                                    step={0.01}
+                                    step={"any"}
                                     {...f}
                                     value={
-                                      (f.value as
-                                        | string
-                                        | number) ?? ""
+                                      (f.value as number) ??
+                                      ""
                                     }
                                     className="bg-white"
                                   />
@@ -650,21 +666,28 @@ export function SpendInputForm() {
                               control={form.control}
                               name={`tools.${index}.isLatencyCritical`}
                               render={({ field: f }) => (
-                                <Field className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-slate-200 bg-white p-4">
-                                  <Input
-                                    type="checkbox"
-                                    className="h-4 w-4 rounded border-slate-300 mt-1"
-                                    checked={
-                                      f.value as boolean
-                                    }
-                                    onChange={f.onChange}
-                                  />
-                                  <div className="space-y-1 leading-none">
-                                    <FieldLabel className="text-slate-700">
+                                <Field className="flex gap-0 justify-between">
+                                  <div className="flex gap-2 pt-1">
+                                    <Checkbox
+                                      checked={
+                                        (f.value as boolean) ??
+                                        false
+                                      }
+                                      onCheckedChange={
+                                        f.onChange
+                                      }
+                                      className="h-5! w-5!  rounded-md border-slate-300 bg-white data-[state=checked]:bg-indigo-600 data-[state=checked]:text-white"
+                                    />
+                                    <FieldLabel className="text-slate-700 font-semibold!">
                                       Latency Critical
                                       (Real-time)
                                     </FieldLabel>
                                   </div>
+                                  <FieldDescription>
+                                    Disable for background
+                                    tasks to calculate batch
+                                    processing discounts.
+                                  </FieldDescription>
                                 </Field>
                               )}
                             />
@@ -679,7 +702,7 @@ export function SpendInputForm() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
+              className="w-full bg-indigo-600 text-white hover:bg-indigo-700 rounded-md">
               {isSubmitting
                 ? "Generating Audit..."
                 : "Generate Free Audit"}

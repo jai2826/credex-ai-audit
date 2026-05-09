@@ -33,7 +33,7 @@ export function calculateGeminiToolOptimization(
   );
 
   return {
-    type: "tool",
+    type: "saas",
     toolId: "gemini",
     recommendedPlan: currentPlanName,
     recommendedSeats: currentSeats,

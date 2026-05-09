@@ -48,7 +48,7 @@ interface BaseOptimizationResult {
 
 // Strict interface specifically for tool seat-based tools
 export interface SaasOptimization extends BaseOptimizationResult {
-  type: "tool";
+  type: "saas";
   recommendedPlan: string;
   recommendedSeats: number;
 }
@@ -68,7 +68,7 @@ export type OptimizationResult =
   | ApiOptimization;
 
 export type SaasInput = {
-  type: "tool";
+  type: "saas";
   toolId: SaasKey;
   plan: string;
   seats: number;

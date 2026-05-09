@@ -55,7 +55,7 @@ export function calculateClaudeToolOptimization(
       forcedMonthlySpend - optimizedMonthlySpend;
 
     return {
-      type: "tool",
+      type: "saas",
       toolId: toolId,
       recommendedPlan: "Pro",
       recommendedSeats: currentSeats,
@@ -68,7 +68,7 @@ export function calculateClaudeToolOptimization(
 
   // --- DEFAULT FALLBACK (If they are already optimized) ---
   return {
-    type: "tool",
+    type: "saas",
     toolId: toolId,
     recommendedPlan: currentPlanName,
     recommendedSeats: currentSeats,

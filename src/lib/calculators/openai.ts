@@ -1,9 +1,7 @@
-import { normalizeToUSD } from "@/lib/currency";
-import { SAAS_PRICING_DB, API_PRICING_DB } from "@/lib/db";
+import { API_PRICING_DB } from "@/lib/db";
 import type {
-  SaasOptimization,
-  ApiOptimization,
-  ApiProviderKey,
+    ApiOptimization,
+    ApiProviderKey
 } from "../types";
 
 // export function calculateOpenAiToolOptimization(

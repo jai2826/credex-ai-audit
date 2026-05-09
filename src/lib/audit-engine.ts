@@ -151,7 +151,7 @@ export function calculateGlobalAudit(
       let result: OptimizationResult;
 
       switch (input.type) {
-        case "tool":
+        case "saas":
           result = calculateToolOptimization(
             input.toolId,
             input.plan,

@@ -39,7 +39,7 @@ export function calculateCopilotOptimization(
     const monthlySavings = standardCost - optimizedCost;
 
     return {
-      type: "tool",
+      type: "saas",
       toolId: toolId,
       recommendedPlan: "Business",
       recommendedSeats: currentSeats,
@@ -55,7 +55,7 @@ export function calculateCopilotOptimization(
     currentMonthlySpend - standardCost,
   );
   return {
-    type: "tool",
+    type: "saas",
     toolId: toolId,
     recommendedPlan: currentPlanName,
     recommendedSeats: currentSeats,

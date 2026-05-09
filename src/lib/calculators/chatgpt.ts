@@ -44,7 +44,7 @@ export function calculateChatGPTToolOptimization(
       standardCostUSD - optimizedCostUSD;
 
     return {
-      type: "tool",
+      type: "saas",
       toolId: "chatgpt",
       recommendedPlan: "Plus",
       recommendedSeats: currentSeats,
@@ -56,7 +56,7 @@ export function calculateChatGPTToolOptimization(
   }
 
   return {
-    type: "tool",
+    type: "saas",
     toolId: "chatgpt",
     recommendedPlan: currentPlanName,
     recommendedSeats: currentSeats,

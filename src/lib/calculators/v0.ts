@@ -41,7 +41,7 @@ export function calculateV0ToolOptimization(
       forcedMinimumCost - optimizedCost;
 
     return {
-      type: "tool",
+      type: "saas",
       toolId: toolId,
       recommendedPlan: "Premium",
       recommendedSeats: currentSeats,
@@ -57,7 +57,7 @@ export function calculateV0ToolOptimization(
     currentMonthlySpend - actualSeatCost,
   );
   return {
-    type: "tool",
+    type: "saas",
     toolId: toolId,
     recommendedPlan: currentPlanName,
     recommendedSeats: currentSeats,

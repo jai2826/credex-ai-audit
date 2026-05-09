@@ -26,3 +26,23 @@ Spent a while arguing with TypeScript for typecast mismatches between the unifie
 
 **Plan for tomorrow:**
 Take the hydrated Jotai state, feed it into the master `calculateGlobalAudit` aggregator, and build out the `/results` dashboard page to visually break down the financial inefficiencies, traps, and rationales for the user.
+
+## Day 3 — 2026-05-09
+**Hours worked:** 3
+
+**What I did:**
+- Implemented the `calculateGlobalAudit` aggregator and wired the hydrated Jotai session state into the calculation engine.
+- Built the `/results` dashboard, engineering a high-converting UI to render per-tool cost breakdowns, expose minimum-seat traps, and highlight batch-routing optimizations.
+- Enforced strict domain boundaries by adding TypeScript interfaces for `PRICING_DB` (Cursor, Copilot, Claude, v0, OpenAI, Gemini) and refactored the underlying calculators to strictly consume these types.
+- Resolved Zod coercion conflicts by building an intermediate mapping layer inside the form's `onSubmit` handler, bridging the gap between loose HTML inputs and strict domain payloads.
+- Wrote unit tests covering critical edge cases, specifically validating minimum-seat requirements and accurate batch-discount applications.
+
+**What I learned:**
+When we are working with HTML forms and complex domain logic we cannot just rely on schema validation. It is not enough. We need to do something. Using a layer that maps everything between the user interface and the Jotai store makes things a lot easier to work with in TypeScript. This also stops us from running into problems with Zod coercion. So we should use this mapping layer to make our work simpler and to avoid these problems, with Jotai store and Zot coercion.
+
+**Blockers / what I'm stuck on:**
+None at present. The engine is working well the data flow is organized in an order and the way things are shown makes sense with the mathematical results. The engine and the data flow and the visual hierarchy of the engine all work together to give us mathematical output from the engine.
+
+**Plan for tomorrow:**
+- Polish the `/results` UI/UX and implement a robust CSV/PDF/DOC export feature so users can download and share their financial audit reports.
+- Write end-to-end (E2E) tests covering the primary user flow from the marketing page form submission to the final dashboard render.

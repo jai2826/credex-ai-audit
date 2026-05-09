@@ -37,7 +37,7 @@ export function calculateCursorOptimization(
       standardMonthlyCost - optimizedCost;
 
     return {
-      type: "tool",
+      type: "saas",
       toolId: toolId,
       recommendedPlan: "Pro+",
       recommendedSeats: currentSeats,
@@ -53,7 +53,7 @@ export function calculateCursorOptimization(
     currentMonthlySpend - standardMonthlyCost,
   );
   return {
-    type: "tool",
+    type: "saas",
     toolId: toolId,
     recommendedPlan: currentPlanName,
     recommendedSeats: currentSeats,
