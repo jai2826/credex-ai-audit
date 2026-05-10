@@ -43,6 +43,7 @@ import {
   SaasKey,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 // --- SCHEMA DEFINITIONS ---
 const saasSchema = z.object({
@@ -51,17 +52,28 @@ const saasSchema = z.object({
   plan: z.string().min(1, "Select a plan"),
   seats: z.coerce.number().int().min(1),
   spend: z.coerce.number().min(0),
+  useCase: z.enum(
+    ["coding", "writing", "data", "research", "mixed"],
+    {
+      message: "Please select a valid use case",
+    },
+  ),
 });
 
 const apiSchema = z.object({
   type: z.literal("api"),
   toolId: z.string().min(1, "Select a tool"),
-  providerKey: z.string(), // Mapped from config
   modelId: z.string().min(1, "Select a model"),
   inputTokens: z.coerce.number().min(0),
   outputTokens: z.coerce.number().min(0),
   spend: z.coerce.number().min(0),
   isLatencyCritical: z.boolean().default(false),
+  useCase: z.enum(
+    ["coding", "writing", "data", "research", "mixed"],
+    {
+      message: "Please select a valid use case",
+    },
+  ),
 });
 
 const spendInputFormSchema = z.object({
@@ -70,12 +82,6 @@ const spendInputFormSchema = z.object({
       z.discriminatedUnion("type", [saasSchema, apiSchema]),
     )
     .min(1),
-  useCase: z.enum(
-    ["coding", "writing", "data", "research", "mixed"],
-    {
-      message: "Please select a valid use case",
-    },
-  ),
 });
 
 type SpendInputFormInput = z.input<
@@ -88,6 +94,7 @@ type SpendInputFormOutput = z.infer<
 export function SpendInputForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [, setAuditItems] = useAtom(auditItemsAtom);
+  const router = useRouter();
 
   const form = useForm<
     SpendInputFormInput,
@@ -103,19 +110,9 @@ export function SpendInputForm() {
           plan: "",
           seats: 1,
           spend: 0,
-        },
-        {
-          type: "api",
-          toolId: "",
-          providerKey: "",
-          modelId: "",
-          inputTokens: 0,
-          outputTokens: 0,
-          spend: 0,
-          isLatencyCritical: false,
+          useCase: "coding",
         },
       ],
-      useCase: "coding",
     },
   });
 
@@ -143,20 +140,18 @@ export function SpendInputForm() {
               plan: item.plan,
               seats: item.seats,
               spend: item.spend,
+              useCase: item.useCase,
             };
           } else {
             return {
               type: "api",
               toolId: item.toolId as ApiProviderKey,
-              providerKey:
-                item.providerKey as ApiProviderKey,
               modelId: item.modelId,
               inputTokens: item.inputTokens,
               outputTokens: item.outputTokens,
               spend: item.spend,
               isLatencyCritical: item.isLatencyCritical,
-              // Inject the global useCase into the specific API item
-              useCase: values.useCase,
+              useCase: item.useCase,
             };
           }
         });
@@ -164,11 +159,12 @@ export function SpendInputForm() {
       // Strict save to Jotai
       setAuditItems(strictAuditItems);
 
-      console.log(
-        "Strict payload saved to Jotai:",
-        strictAuditItems,
-      );
-      alert("Audit saved to local storage!");
+      // console.log(
+      //   "Strict payload saved to Jotai:",
+      //   strictAuditItems,
+      // );
+      // alert("Audit saved to local storage!");
+      router.push("/results");
     } catch (error) {
       console.error("Error saving form:", error);
     } finally {
@@ -205,6 +201,7 @@ export function SpendInputForm() {
                       plan: "",
                       seats: 1,
                       spend: 0,
+                      useCase: "coding",
                     })
                   }
                   variant={"outline"}
@@ -277,7 +274,7 @@ export function SpendInputForm() {
                                     "api",
                                   );
                                   form.setValue(
-                                    `tools.${index}.providerKey`,
+                                    `tools.${index}.toolId`,
                                     c.apiProviderKey!,
                                   );
                                 }
@@ -308,7 +305,7 @@ export function SpendInputForm() {
                       />
                       <Controller
                         control={form.control}
-                        name="useCase"
+                        name={`tools.${index}.useCase`}
                         render={({
                           field: f,
                           fieldState: s,
@@ -387,7 +384,7 @@ export function SpendInputForm() {
                                     onClick={() => {
                                       f.onChange("api");
                                       form.setValue(
-                                        `tools.${index}.providerKey`,
+                                        `tools.${index}.toolId`,
                                         config.apiProviderKey!,
                                       );
                                     }}

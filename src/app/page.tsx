@@ -1,4 +1,6 @@
+'use client'
 import { SpendInputForm } from "@/components/SpendInputForm";
+import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   BarChart3,
@@ -88,7 +90,7 @@ export default function Index() {
       </section>
 
       {/* Form Section */}
-      <section className="bg-slate-50 border-b border-slate-200">
+      <section id="audit-form" className="bg-slate-50 border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="max-w-4xl mx-auto">
             <div className="mb-12">
@@ -124,9 +126,9 @@ export default function Index() {
                 Enter Your Tools
               </h3>
               <p className="text-slate-600 text-sm">
-                Tell us which AI tools you&apos;re using, what
-                plans you&apos;re on, and how much you&apos;re
-                spending monthly.
+                Tell us which AI tools you&apos;re using,
+                what plans you&apos;re on, and how much
+                you&apos;re spending monthly.
               </p>
             </div>
 
@@ -255,10 +257,15 @@ export default function Index() {
             hidden savings. Get your free audit now—it only
             takes 30 seconds.
           </p>
-          <button className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-8 py-3 rounded-lg transition-colors">
+          <Button
+            className="rounded-md"
+            onClick={() =>
+              document
+                .getElementById("audit-form")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }>
             Start Free Audit
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -266,7 +273,8 @@ export default function Index() {
       <footer className="border-t border-slate-200 bg-slate-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-sm text-slate-600">
           <p>
-            © 2024 AISpendAudit. Powered by{" "}
+            © {new Date().getFullYear()} AISpendAudit.
+            Powered by{" "}
             <span className="font-medium text-slate-900">
               Credex
             </span>

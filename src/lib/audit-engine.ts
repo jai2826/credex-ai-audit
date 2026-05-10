@@ -1,9 +1,9 @@
 // THIS IS YOUR SOURCE OF TRUTH.
 
+import { calculateAnthropicApiOptimization } from "@/lib/calculators/anthropic";
 import { calculateChatGPTToolOptimization } from "@/lib/calculators/chatgpt";
 import {
-  calculateClaudeApiOptimization,
-  calculateClaudeToolOptimization,
+  calculateClaudeToolOptimization
 } from "@/lib/calculators/claude";
 import { calculateCopilotOptimization } from "@/lib/calculators/copilot";
 import { calculateCursorOptimization } from "@/lib/calculators/cursor";
@@ -14,14 +14,15 @@ import {
 import { calculateOpenAiApiOptimization } from "@/lib/calculators/openai";
 import { calculateV0ToolOptimization } from "@/lib/calculators/v0";
 import { convertToDisplay } from "@/lib/currency";
-import { SAAS_PRICING_DB } from "@/lib/db";
 import {
   ApiOptimization,
+  ApiProviderKey,
   AuditInput,
   CurrencyType,
   OptimizationResult,
   SaasKey,
   SaasOptimization,
+  UseCaseType,
 } from "@/lib/types";
 
 interface GlobalAuditResult {
@@ -38,13 +39,7 @@ export function calculateToolOptimization(
   currentMonthlySpend: number,
 ): SaasOptimization {
   // 1. Fetch the official pricing from our SAAS_PRICING_DB
-  const toolData = SAAS_PRICING_DB[toolId];
-  if (!toolData) {
-    throw new Error(
-      `Pricing data not found for tool: ${toolId}`,
-    );
-  }
-
+  
   switch (toolId) {
     case "claude":
       return calculateClaudeToolOptimization(
@@ -92,18 +87,18 @@ export function calculateToolOptimization(
 }
 
 export function calculateApiOptimization(
-  providerKey: string, // e.g., 'claude_api'
+  toolId: ApiProviderKey, // e.g., 'anthropic_api'
   modelId: string, // e.g., 'claude_opus_4_7'
   monthlyInputTokens: number, // IN MILLIONS (e.g., 50 for 50M tokens)
   monthlyOutputTokens: number, // IN MILLIONS
   isLatencyCritical: boolean, // Does the user NEED real-time responses?
-  useCase: string, // e.g., "customer support chatbot", "internal knowledge base", etc.
+  useCase: UseCaseType, // e.g., "customer support chatbot", "internal knowledge base", etc.
   currentMonthlySpend: number, // User's current monthly spend on this API
 ): ApiOptimization {
-  switch (providerKey) {
-    case "claude_api":
-      return calculateClaudeApiOptimization(
-        providerKey,
+  switch (toolId) {
+    case "anthropic_api":
+      return calculateAnthropicApiOptimization(
+        toolId,
         modelId,
         monthlyInputTokens,
         monthlyOutputTokens,
@@ -113,7 +108,7 @@ export function calculateApiOptimization(
       );
     case "openai_api":
       return calculateOpenAiApiOptimization(
-        providerKey,
+        toolId,
         modelId,
         monthlyInputTokens,
         monthlyOutputTokens,
@@ -123,7 +118,7 @@ export function calculateApiOptimization(
       );
     case "gemini_api":
       return calculateGeminiApiOptimization(
-        providerKey,
+        toolId,
         modelId,
         monthlyInputTokens,
         monthlyOutputTokens,
@@ -134,7 +129,7 @@ export function calculateApiOptimization(
 
     default:
       throw new Error(
-        `Optimization logic not yet implemented for: ${providerKey}`,
+        `Optimization logic not yet implemented for: ${toolId}`,
       );
   }
 }
@@ -162,7 +157,7 @@ export function calculateGlobalAudit(
         case "api":
           // Use the ROUTER, not a specific calculator
           result = calculateApiOptimization(
-            input.providerKey,
+            input.toolId,
             input.modelId,
             input.inputTokens,
             input.outputTokens,

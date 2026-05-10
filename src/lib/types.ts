@@ -1,3 +1,12 @@
+export const useCase = [
+  "coding",
+  "writing",
+  "data",
+  "research",
+  "mixed",
+] as const;
+export type UseCaseType = typeof useCase[number];
+
 export type SaasKey =
   | "cursor"
   | "copilot"
@@ -7,10 +16,9 @@ export type SaasKey =
   | "v0";
 
 export type ApiProviderKey =
-  | "anthropic"
-  | "claude_api"
+  | "anthropic_api"
   | "openai_api"
-  | "gemini_api";  
+  | "gemini_api";
 
 export type CombinedKey = SaasKey | ApiProviderKey;
 
@@ -21,6 +29,7 @@ export interface Plan {
   costPerUser: number;
   minSeats: number;
   currency: CurrencyType;
+  bestFor: UseCaseType[];
 }
 
 export interface ToolPricing {
@@ -35,6 +44,7 @@ export interface ApiModelPricing {
   inputCostPerMillion: number;
   outputCostPerMillion: number;
   batchDiscountPercentage: number;
+  bestFor: UseCaseType[];
 }
 
 // Base interface for the fields that EVERY result must have
@@ -73,18 +83,18 @@ export type SaasInput = {
   plan: string;
   seats: number;
   spend: number;
+  useCase: UseCaseType;
 };
 
 export type ApiInput = {
   type: "api";
-  toolId: ApiProviderKey; 
-  providerKey: ApiProviderKey; 
+  toolId: ApiProviderKey;
   modelId: string;
   inputTokens: number;
   outputTokens: number;
   spend: number;
   isLatencyCritical: boolean;
-  useCase: string;
+  useCase: UseCaseType;
 };
 
 export type AuditInput = SaasInput | ApiInput;

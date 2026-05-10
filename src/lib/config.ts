@@ -3,13 +3,13 @@ import type { ApiProviderKey, SaasKey } from "@/lib/types";
 
 // The Registry maps UI concepts to Database keys.
 const TOOL_REGISTRY: Record<string, { saas?: SaasKey; api?: ApiProviderKey; displayName?: string }> = {
-  claude: { saas: "claude", api: "claude_api" },
+  claude: { saas: "claude", api: "anthropic_api" },
   chatgpt: { saas: "chatgpt", api: "openai_api" },
   gemini: { saas: "gemini", api: "gemini_api" },
   cursor: { saas: "cursor" },
   copilot: { saas: "copilot" },
   v0: { saas: "v0" },
-  anthropic_api: { api: "claude_api", displayName: "Anthropic API Direct" },
+  anthropic_api: { api: "anthropic_api", displayName: "Anthropic API Direct" },
   openai_api: { api: "openai_api", displayName: "OpenAI API Direct" },
 };
 
@@ -43,4 +43,3 @@ export const TOOLS_CONFIG: Record<string, ToolConfigData> = Object.entries(TOOL_
 
 );
 
-// console.log("TOOLS_CONFIG:", TOOLS_CONFIG.openai_api);

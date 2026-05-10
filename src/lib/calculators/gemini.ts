@@ -1,9 +1,10 @@
 import { normalizeToUSD } from "@/lib/currency";
-import { SAAS_PRICING_DB, API_PRICING_DB } from "@/lib/db";
+import { API_PRICING_DB, SAAS_PRICING_DB } from "@/lib/db";
 import type {
-  SaasOptimization,
   ApiOptimization,
   ApiProviderKey,
+  SaasOptimization,
+  UseCaseType,
 } from "../types";
 
 export function calculateGeminiToolOptimization(
@@ -49,23 +50,21 @@ export function calculateGeminiToolOptimization(
 }
 
 export function calculateGeminiApiOptimization(
-  providerKey: ApiProviderKey,
+  toolId: ApiProviderKey,
   modelId: string,
   monthlyInputTokens: number, // Acts as 'generations' for Veo/Imagen
   monthlyOutputTokens: number,
   currentMonthlySpend: number,
   isLatencyCritical: boolean,
-  useCase: string,
+  useCase: UseCaseType,
 ): ApiOptimization {
   console.log("Fired Gemini API Optimization");
-  const providerData = API_PRICING_DB[providerKey];
+  const providerData = API_PRICING_DB[toolId];
   if (!providerData)
-    throw new Error(
-      `Provider key not found: ${providerKey}`,
-    );
+    throw new Error(`Provider key not found: ${toolId}`);
   // Trim prevents typos from your DB (" lyria-3-pro-preview")
   const modelData = providerData.find(
-    (m) => m.modelId.trim() === modelId.trim(),
+    (m) => m.modelId === modelId,
   );
   if (!modelData)
     throw new Error(`Gemini model ${modelId} not found.`);
@@ -106,7 +105,7 @@ export function calculateGeminiApiOptimization(
 
     return {
       type: "api",
-      toolId: providerKey,
+      toolId: toolId,
       recommendedModel: modelData.modelName,
       inputCostPerMillion:
         modelData.inputCostPerMillion * discountMultiplier,
@@ -127,7 +126,7 @@ export function calculateGeminiApiOptimization(
       : standardMonthlyCost;
   return {
     type: "api",
-    toolId: providerKey,
+    toolId: toolId,
     recommendedModel: modelData.modelName,
     inputCostPerMillion: modelData.inputCostPerMillion,
     outputCostPerMillion: modelData.outputCostPerMillion,

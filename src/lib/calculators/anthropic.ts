@@ -1,25 +1,26 @@
 import { API_PRICING_DB } from "@/lib/db";
 import type {
     ApiOptimization,
-    ApiProviderKey
+    ApiProviderKey,
+    UseCaseType
 } from "../types";
 
 
 
 export function calculateAnthropicApiOptimization(
-  providerKey: ApiProviderKey,
+  toolId: ApiProviderKey,
   modelId: string,
   monthlyInputTokens: number,
   monthlyOutputTokens: number,
   currentMonthlySpend: number,
   isLatencyCritical: boolean,
-  useCase: string,
+  useCase: UseCaseType,
 ): ApiOptimization {
   // 1. Fail loudly if the model doesn't exist
-  const providerData = API_PRICING_DB[providerKey];
+  const providerData = API_PRICING_DB[toolId];
   if (!providerData)
     throw new Error(
-      `Provider key not found: ${providerKey}`,
+      `Provider key not found: ${toolId}`,
     );
 
   const modelData = providerData.find(
@@ -51,7 +52,7 @@ export function calculateAnthropicApiOptimization(
 
     return {
       type: "api",
-      toolId: providerKey, // Cast because our SaasKey type includes API providers for simplicity
+      toolId: toolId, // Cast because our SaasKey type includes API providers for simplicity
       recommendedModel: modelData.modelName,
       inputCostPerMillion:
         modelData.inputCostPerMillion * discountMultiplier,
@@ -79,7 +80,7 @@ export function calculateAnthropicApiOptimization(
 
   return {
     type: "api",
-    toolId: providerKey, // Cast because our SaasKey type includes API providers for simplicity
+    toolId: toolId, // Cast because our SaasKey type includes API providers for simplicity
     recommendedModel: modelData.modelName,
     inputCostPerMillion: modelData.inputCostPerMillion,
     outputCostPerMillion: modelData.outputCostPerMillion,

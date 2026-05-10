@@ -1,9 +1,7 @@
 import { normalizeToUSD } from "@/lib/currency";
-import { SAAS_PRICING_DB, API_PRICING_DB } from "@/lib/db";
+import { SAAS_PRICING_DB } from "@/lib/db";
 import type {
-  SaasOptimization,
-  ApiOptimization,
-  ApiProviderKey,
+  SaasOptimization
 } from "../types";
 
 export function calculateChatGPTToolOptimization(
@@ -71,82 +69,4 @@ export function calculateChatGPTToolOptimization(
   };
 }
 
-export function calculateChatGPTApiOptimization(
-  providerKey: ApiProviderKey,
-  modelId: string,
-  monthlyInputTokens: number,
-  monthlyOutputTokens: number,
-  currentMonthlySpend: number,
-  isLatencyCritical: boolean,
-  useCase: string,
-): ApiOptimization {
-  console.log("Fired ChatGPT API Optimization");
-  const providerData = API_PRICING_DB[providerKey];
-  if (!providerData)
-    throw new Error(
-      `Provider key not found: ${providerKey}`,
-    );
 
-  const modelData = providerData.find(
-    (m) => m.modelId.trim() === modelId.trim(),
-  );
-  if (!modelData)
-    throw new Error(`ChatGPT model ${modelId} not found.`);
-
-  const standardMonthlyCost =
-    modelData.inputCostPerMillion * monthlyInputTokens +
-    modelData.outputCostPerMillion * monthlyOutputTokens;
-
-  if (
-    !isLatencyCritical &&
-    modelData.batchDiscountPercentage > 0
-  ) {
-    const discountMultiplier =
-      1 - modelData.batchDiscountPercentage;
-    const optimizedMonthlyCost =
-      standardMonthlyCost * discountMultiplier;
-    const baselineSpend =
-      currentMonthlySpend > 0
-        ? currentMonthlySpend
-        : standardMonthlyCost;
-    const monthlySavings =
-      baselineSpend - optimizedMonthlyCost;
-
-    return {
-      type: "api",
-      toolId: providerKey,
-      recommendedModel: modelData.modelName,
-      inputCostPerMillion:
-        modelData.inputCostPerMillion * discountMultiplier,
-      outputCostPerMillion:
-        modelData.outputCostPerMillion * discountMultiplier,
-      batchDiscountPercentage:
-        modelData.batchDiscountPercentage,
-      monthlySavings,
-      annualSavings: monthlySavings * 12,
-      currentMonthlySpend: baselineSpend,
-      rationale: `By routing "${useCase}" through the ChatGPT Batch API, you save ${modelData.batchDiscountPercentage * 100}%.`,
-    };
-  }
-
-  const baselineSpend =
-    currentMonthlySpend > 0
-      ? currentMonthlySpend
-      : standardMonthlyCost;
-  return {
-    type: "api",
-    toolId: providerKey,
-    recommendedModel: modelData.modelName,
-    inputCostPerMillion: modelData.inputCostPerMillion,
-    outputCostPerMillion: modelData.outputCostPerMillion,
-    batchDiscountPercentage: 0,
-    monthlySavings: Math.max(
-      0,
-      baselineSpend - standardMonthlyCost,
-    ),
-    annualSavings:
-      Math.max(0, baselineSpend - standardMonthlyCost) * 12,
-    currentMonthlySpend: baselineSpend,
-    rationale: `Synchronous execution required for latency-critical ChatGPT workloads.`,
-  };
-}
