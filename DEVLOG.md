@@ -68,3 +68,20 @@ None at present. The engine is working well the data flow is organized in an ord
 **Plan for tomorrow:**
 - Creation of Lead Capture of backend with convex. 
 - Deployment to Vercel/Production and final verification of the end-to-end lead capture and database integration.
+
+
+## Day 5 — 2026-05-11
+**Hours worked:** 2
+
+**What I did:**
+- Engineered a bulletproof `try/catch` fallback mechanism. If the Anthropic API throws a 429 Rate Limit error or times out, the component instantly degrades to a hardcoded templated summary so the user experience never crashes.
+- Created the lead capture form, added backend for the form. 
+
+**What I learned:** 
+I learned that LLM network calls are inherently unstable and slow. I had to implement a skeleton loading state in the UI so the rest of the dashboard renders instantly while the Anthropic API takes 2-3 seconds to generate the 100-word summary. 
+
+**Blockers / what I'm stuck on:**
+Too much calculations can halucinate the tool, finding a better solution for it.
+
+**Plan for tomorrow:**
+Draft `LANDING_COPY.md` and `METRICS.md`, and polish the root `README.md` and `ARCHITECTURE.md`. Prepare for the final Vercel production deployment and Lighthouse optimization. Also add other markdown files needed for the project
