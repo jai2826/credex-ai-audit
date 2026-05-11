@@ -1,6 +1,7 @@
 import { normalizeToUSD } from "@/lib/currency";
 import { SAAS_PRICING_DB } from "@/lib/db";
 import type { SaasOptimization } from "../types";
+import { calculateSaasRetailCost } from "@/lib/pricing-utils";
 
 export function calculateV0ToolOptimization(
   currentPlanName: string,
@@ -10,13 +11,33 @@ export function calculateV0ToolOptimization(
   console.log("Fired V0 Tool Optimization");
 
   const toolId = "v0";
+  const expectedSpend = calculateSaasRetailCost(
+    toolId,
+    currentPlanName,
+    currentSeats,
+  );
+
   const toolData = SAAS_PRICING_DB[toolId];
   const currentPlan = toolData.plans.find(
     (p) => p.name === currentPlanName,
   );
+  if (currentMonthlySpend < expectedSpend) {
+    return {
+      type: "saas",
+      toolId: toolId,
+      annualSavings: 0,
+      monthlySavings: 0,
+      rationale: `You are paying $${currentMonthlySpend}/mo, which is below the standard retail minimum of $${expectedSpend}. Keep your grandfathered pricing!`,
+      currentMonthlySpend: currentMonthlySpend,
+      recommendedPlan: currentPlan?.name || "Unknown Plan",
+      recommendedSeats: currentSeats,
+    };
+  }
 
   if (!currentPlan)
-    throw new Error(`v0 plan "${currentPlanName}" not found.`);
+    throw new Error(
+      `v0 plan "${currentPlanName}" not found.`,
+    );
 
   const actualSeatCost = normalizeToUSD(
     currentPlan.costPerUser * currentSeats,
@@ -33,15 +54,19 @@ export function calculateV0ToolOptimization(
     );
 
     // Premium has minSeats: 1, so it's safe for solo/small users
-    const premiumPlan = toolData.plans.find((p) => p.name === "Premium");
-    if (!premiumPlan) throw new Error("v0 Premium plan missing from DB.");
+    const premiumPlan = toolData.plans.find(
+      (p) => p.name === "Premium",
+    );
+    if (!premiumPlan)
+      throw new Error("v0 Premium plan missing from DB.");
 
     const optimizedCost = normalizeToUSD(
       premiumPlan.costPerUser * currentSeats,
       premiumPlan.currency,
     );
 
-    const monthlySavings = forcedMinimumCost - optimizedCost;
+    const monthlySavings =
+      forcedMinimumCost - optimizedCost;
 
     return {
       type: "saas",
@@ -56,7 +81,10 @@ export function calculateV0ToolOptimization(
   }
 
   // No trap triggered — check if they're overpaying vs official pricing
-  const savings = Math.max(0, currentMonthlySpend - actualSeatCost);
+  const savings = Math.max(
+    0,
+    currentMonthlySpend - actualSeatCost,
+  );
 
   return {
     type: "saas",

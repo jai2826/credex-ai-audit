@@ -41,6 +41,7 @@ import {
   ApiProviderKey,
   AuditInput,
   SaasKey,
+  useCase,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -50,30 +51,53 @@ const saasSchema = z.object({
   type: z.literal("saas"),
   toolId: z.string().min(1, "Select a tool"),
   plan: z.string().min(1, "Select a plan"),
-  seats: z.coerce.number().int().min(1),
-  spend: z.coerce.number().min(0),
-  useCase: z.enum(
-    ["coding", "writing", "data", "research", "mixed"],
-    {
-      message: "Please select a valid use case",
-    },
-  ),
+  seats: z.coerce
+    .number()
+    .int()
+    .min(1, "You must have at least 1 seat.")
+    .max(
+      10000,
+      "For teams over 10,000, contact enterprise sales.",
+    ),
+  spend: z.coerce
+    .number()
+    .min(
+      1,
+      "Spend must be greater than $0 for a paid tool.",
+    )
+    .max(
+      1000000,
+      "Spend exceeds maximum allowable audit limits.",
+    ),
+  useCase: z.enum(useCase, {
+    message: "Please select a valid use case",
+  }),
 });
 
 const apiSchema = z.object({
   type: z.literal("api"),
   toolId: z.string().min(1, "Select a tool"),
   modelId: z.string().min(1, "Select a model"),
-  inputTokens: z.coerce.number().min(0),
-  outputTokens: z.coerce.number().min(0),
-  spend: z.coerce.number().min(0),
+  inputTokens: z.coerce
+    .number()
+    .min(1, "Input tokens must be a positive number."),
+  outputTokens: z.coerce
+    .number()
+    .min(0, "Output tokens must be a positive number."),
+  spend: z.coerce
+    .number()
+    .min(
+      1,
+      "Spend must be greater than $0 for a paid tool.",
+    )
+    .max(
+      1000000,
+      "Spend exceeds maximum allowable audit limits.",
+    ),
   isLatencyCritical: z.boolean().default(false),
-  useCase: z.enum(
-    ["coding", "writing", "data", "research", "mixed"],
-    {
-      message: "Please select a valid use case",
-    },
-  ),
+  useCase: z.enum(useCase, {
+    message: "Please select a valid use case",
+  }),
 });
 
 const spendInputFormSchema = z.object({
@@ -156,14 +180,7 @@ export function SpendInputForm() {
           }
         });
 
-      // Strict save to Jotai
       setAuditItems(strictAuditItems);
-
-      // console.log(
-      //   "Strict payload saved to Jotai:",
-      //   strictAuditItems,
-      // );
-      // alert("Audit saved to local storage!");
       router.push("/results");
     } catch (error) {
       console.error("Error saving form:", error);

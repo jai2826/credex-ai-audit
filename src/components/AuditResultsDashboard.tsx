@@ -99,10 +99,9 @@ export function AuditResultsDashboard({
   };
 
   return (
-    // Added print:bg-white to ensure clean backgrounds on paper
     <div className="w-full min-h-screen bg-slate-50 print:bg-white py-12 px-4 print:py-0">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Print-Only Header (Hidden on screen) */}
+        
         <div className="hidden print:block border-b border-slate-300 pb-4 mb-8">
           <h1 className="text-3xl font-bold text-slate-900">
             Credex AI Infrastructure Audit

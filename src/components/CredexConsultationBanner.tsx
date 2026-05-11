@@ -1,6 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { LeadCapture } from "@/components/LeadCapture";
+import { Zap, ShieldCheck } from "lucide-react";
 
 interface CredexConsultationBannerProps {
   totalSavings: number;
@@ -9,37 +10,58 @@ interface CredexConsultationBannerProps {
 export function CredexConsultationBanner({
   totalSavings,
 }: CredexConsultationBannerProps) {
-  if (totalSavings > 500) {
-    return (
-      <section className="w-full rounded-lg border border-slate-800 bg-slate-900 p-6 text-white shadow-lg">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-100 md:text-base">
-            You have significant savings opportunities. Book
-            a free Credex consultation to capture these
-            infrastructure discounts immediately.
-          </p>
-          <Button
-            type="button"
-            className="bg-white text-slate-900 hover:bg-slate-100">
-            Book Consultation
-          </Button>
-        </div>
-      </section>
-    );
-  }
+  const isHighSavings = totalSavings >= 500;
 
-  // Low savings — still show, but honest messaging
   return (
-    <section className="w-full rounded-lg border border-slate-200 bg-slate-50 p-6">
-      <p className="text-slate-700 font-medium">
-        You&apos;re spending well — your current AI stack looks
-        optimized.
-      </p>
-      <p className="text-slate-500 text-sm mt-1">
-        Want us to notify you when new optimizations apply
-        to your stack?
-      </p>
-      {/* LeadCapture or simple email input here */}
+    <section
+      className={`w-full max-w-6xl mx-auto rounded-xl border p-6 md:p-10 mb-12 flex flex-col gap-8 print:hidden transition-colors ${
+        isHighSavings
+          ? "bg-slate-900 border-slate-800 shadow-lg"
+          : "bg-white border-slate-200 shadow-sm"
+      }`}>
+      {/* 1. The Header & Pitch (Top) */}
+      <div className="flex flex-col gap-4 text-center items-center">
+        <div
+          className={`p-3 rounded-full w-fit ${
+            isHighSavings ? "bg-slate-800" : "bg-slate-100"
+          }`}>
+          {isHighSavings ? (
+            <Zap className="w-8 h-8 text-emerald-400" />
+          ) : (
+            <ShieldCheck className="w-8 h-8 text-slate-500" />
+          )}
+        </div>
+
+        <h2
+          className={`text-2xl md:text-3xl font-bold tracking-tight ${
+            isHighSavings ? "text-white" : "text-slate-900"
+          }`}>
+          {isHighSavings
+            ? "Stop burning cash."
+            : "Your stack is optimized."}
+        </h2>
+
+        <p
+          className={`text-base md:text-lg max-w-2xl ${
+            isHighSavings
+              ? "text-slate-300"
+              : "text-slate-600"
+          }`}>
+          {isHighSavings
+            ? "You have significant savings opportunities hiding in your stack. Enter your work email to get this full report and book a free consultation to capture these discounts."
+            : "You are spending efficiently. Drop your email below and we will notify you the moment a new pricing tier or tool could save you money."}
+        </p>
+      </div>
+
+      {/* 2. The Form (Bottom) */}
+      <div
+        className={`w-full  p-6 rounded-xl border ${
+          isHighSavings
+            ? "bg-slate-800/50 border-slate-700"
+            : "bg-slate-50 border-slate-200"
+        }`}>
+        <LeadCapture totalMonthlySavings={totalSavings} />
+      </div>
     </section>
   );
 }

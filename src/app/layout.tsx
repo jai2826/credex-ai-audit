@@ -1,3 +1,5 @@
+import { refreshExchangeRate } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 import {
   Geist,
@@ -6,8 +8,6 @@ import {
   Playfair_Display,
 } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
-import { refreshExchangeRate } from "@/lib/currency";
 
 const playfairDisplayHeading = Playfair_Display({
   subsets: ["latin"],

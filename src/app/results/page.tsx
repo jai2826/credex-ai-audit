@@ -115,12 +115,11 @@ export default function ResultsPage() {
           <ArrowLeft className="w-4 h-4 mr-2" /> Edit Tool
           Stack
         </Button>
-
-        <CredexConsultationBanner
-          totalSavings={realAuditData.totalMonthlySavings}
-        />
       </div>
       <AuditResultsDashboard results={realAuditData} />
+      <CredexConsultationBanner
+        totalSavings={realAuditData.totalMonthlySavings}
+      />
     </main>
   );
 }
